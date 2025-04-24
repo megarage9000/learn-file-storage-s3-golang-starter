@@ -10,7 +10,11 @@ import (
 	"github.com/google/uuid"
 	"path/filepath"
 	"strings"
+	"encoding/base64"
+	"crypto/rand"
 )
+
+
 
 func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Request) {
 	videoIDString := r.PathValue("videoID")
@@ -58,7 +62,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to get media type", err)
 		return
-	} else if mediaType != "image/jpeg" || mediaType != "image/png" {
+	} else if mediaType != "image/jpeg" && mediaType != "image/png" {
 		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid file format for thumbnails, attempted to upload file of format %s", mediaType), err)
 		return
 	}
@@ -93,7 +97,10 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	// thumbnailURL := fmt.Sprintf("data:%s;base64,%s", mediaType, encodedThumbnailStr)
 
 	// Saving the file on our own file system
-	thumbnailName := fmt.Sprintf("%s.%s", videoID, strings.ReplaceAll(mediaType, "image/", ""))
+	videoBytes := make([]byte, 32)
+	rand.Read(videoBytes)
+
+	thumbnailName := fmt.Sprintf("%s.%s", base64.RawURLEncoding.EncodeToString(videoBytes), strings.ReplaceAll(mediaType, "image/", ""))
 	filePath := filepath.Join(cfg.assetsRoot, thumbnailName)
 	thumbnailData, err := os.Create(filePath)
 	if err != nil {
@@ -101,7 +108,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	defer thumbnailData.Close()
-
+	
 	_, err = io.Copy(thumbnailData, file)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Unable to copy file for %s", thumbnailName), err)
@@ -114,3 +121,4 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	respondWithJSON(w, http.StatusOK, videoMetaData)
 }
+
