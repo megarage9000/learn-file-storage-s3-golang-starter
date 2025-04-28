@@ -90,16 +90,25 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-
+	
 	// Using the temporary file as upload object
 	_, err = temp.Seek(0, io.SeekStart)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Resetting file resulted in err for temp file", err)
+		return
+	}
+
+	// Reading aspect ratio from file when saved
+	aspect, err := getVideoAspectRatio(temp.Name())
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Unable to get aspect ratio from file", err)
+		return
 	}
 
 	videoKeyBytes := make([]byte, 32)
 	rand.Read(videoKeyBytes)
 	videoKey := base64.RawURLEncoding.EncodeToString(videoKeyBytes)
+	videoKey = fmt.Sprintf("%s/%s", aspect, videoKey)
 
 	putObjectParams := s3.PutObjectInput {
 		Bucket: &cfg.s3Bucket,
@@ -125,3 +134,5 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 
 	respondWithJSON(w, http.StatusOK, videoMetadata)
 }
+
+  
