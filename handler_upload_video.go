@@ -110,10 +110,25 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	videoKey := base64.RawURLEncoding.EncodeToString(videoKeyBytes)
 	videoKey = fmt.Sprintf("%s/%s", aspect, videoKey)
 
+	// Processing the file to have fast start
+	processedName, err := processVideoForFastStart(temp.Name())
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Unable to process video for fast start", err)
+		return
+	}
+
+	processedFile, err := os.OpenFile(processedName, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Unable to open processed file %s", processedName), err)
+	}
+
+	defer os.Remove(processedName)
+	defer processedFile.Close()
+
 	putObjectParams := s3.PutObjectInput {
 		Bucket: &cfg.s3Bucket,
 		Key: &videoKey,
-		Body: temp,
+		Body: processedFile,
 		ContentType: &mediaType,
 	}
 
@@ -135,4 +150,6 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	respondWithJSON(w, http.StatusOK, videoMetadata)
 }
 
-  
+
+
+
