@@ -139,9 +139,18 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Uploading to database the new data
-	videoURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, videoKey)
+	// videoURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, videoKey)
+
+	// Using presigned URLs for url, so we only pass the bucket and key
+	videoURL := fmt.Sprintf("%s,%s", cfg.s3Bucket, videoKey)
 	videoMetadata.VideoURL = &videoURL
-	videoUploadErr := cfg.db.UpdateVideo(videoMetadata)
+	presignedVideoData, err := cfg.dbVideoToSignedVideo(videoMetadata)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Cannot obtain presigned data", err)
+		return
+	}
+
+	videoUploadErr := cfg.db.UpdateVideo(presignedVideoData)
 	if videoUploadErr != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to update video data", err)
 		return
