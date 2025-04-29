@@ -45,6 +45,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	} else if videoMetadata.UserID != userID {
 		respondWithError(w, http.StatusUnauthorized, fmt.Sprintf("User is not authorized to get video data"), err)
+		return
 	}
 
 	// Parsing to multiform from request to get video data
@@ -79,7 +80,6 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusBadRequest, "Could not create temporary file for upload", err)
 		return
 	}
-
 	
 	defer os.Remove(tempFileName)
 	defer temp.Close()
@@ -141,21 +141,24 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	// Uploading to database the new data
 	// videoURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, videoKey)
 
-	// Using presigned URLs for url, so we only pass the bucket and key
+	// Saving data to database
 	videoURL := fmt.Sprintf("%s,%s", cfg.s3Bucket, videoKey)
 	videoMetadata.VideoURL = &videoURL
-	presignedVideoData, err := cfg.dbVideoToSignedVideo(videoMetadata)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Cannot obtain presigned data", err)
-		return
-	}
-
-	videoUploadErr := cfg.db.UpdateVideo(presignedVideoData)
+	
+	videoUploadErr := cfg.db.UpdateVideo(videoMetadata)
 	if videoUploadErr != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to update video data", err)
 		return
 	}
-
+	
+	// Using presigned URLs for url, so we only pass the bucket and key
+	presignedVideoData, err := cfg.dbVideoToSignedVideo(videoMetadata)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Cannot obtain presigned data", err)
+		return
+	} else {
+		fmt.Printf("data db signed video url %s\n", *presignedVideoData.VideoURL)
+	}
 	respondWithJSON(w, http.StatusOK, presignedVideoData)
 }
 

@@ -25,6 +25,7 @@ func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video
 		return video, err
 	}
 
-	video.VideoURL = &presignedURL
-	return video, nil
+	updatedVideo := video
+	updatedVideo.VideoURL = &presignedURL
+	return updatedVideo, nil
 }
