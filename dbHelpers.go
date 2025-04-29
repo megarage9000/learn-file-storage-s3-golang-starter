@@ -10,19 +10,19 @@ import (
 func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
 
 	if video.VideoURL == nil {
-		return database.Video{}, fmt.Errorf("Video URL is nil")
+		return video, nil
 	}
 
 	videoParams := strings.Split(*video.VideoURL, ",")
 	if len(videoParams) != 2 {
-		return database.Video{}, fmt.Errorf("Cannot split video URL: %s to bucket and key", *video.VideoURL)
+		return video, fmt.Errorf("Cannot split video URL: %s to bucket and key", *video.VideoURL)
 	}
 	bucket := videoParams[0]
 	key := videoParams[1]
 
 	presignedURL, err := generatePresignedURL(cfg.s3Client, bucket, key, 5 * time.Minute)
 	if err != nil {
-		return database.Video{}, err
+		return video, err
 	}
 
 	video.VideoURL = &presignedURL
